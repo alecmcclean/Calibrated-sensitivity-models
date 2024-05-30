@@ -4,35 +4,51 @@
 
 load("../intermediate/darfur/fx_intermediate.RData")
 
+ATE_EST <- dat$est[1]
+dat %<>% select(-est) %>% 
+  gather(var, value, upper_bd_est, lower_bd_est, ci_lb, ci_ub) %>% 
+  filter(!(analysis == "new" & var == "lower_bd_est"),
+         !(analysis == "new" & var == "upper_bd_est")) %>% 
+  mutate(analysis = ifelse(grepl("_est", var), "bound", analysis),
+         var = ifelse(var %in% c("ci_lb", "lower_bd_est"), "lower", "upper")) 
+
 dat %<>% mutate(
-  analysis = ifelse(analysis == "new",
-                    "Calibrated sensitivity",
-                    "Standard sensitivity")
+  analysis = case_when(
+    analysis == "new" ~ "Calibrated sensitivity CI",
+    analysis == "old" ~ "Standard sensitivity CI",
+    T ~ "Estimated bounds"
+  ),
+  analysis = factor(analysis,
+                    levels = c("Estimated bounds", 
+                               "Standard sensitivity CI",
+                               "Calibrated sensitivity CI"))
 )
+
+dat %<>% spread(var, value)
 
 ################################
 ### Effect differences
 
-options(ggplot2.discrete.colour= c("red", "blue"))
 p <- ggplot(data = dat, aes(x = gamma)) + 
-  geom_line(aes(y = est), linewidth = 1, linetype = "dashed") +
-  geom_line(aes(y = upper_bd_est, color = analysis), color = "purple", linewidth = 1) +
-  geom_line(aes(y = lower_bd_est, color = analysis), color = "purple", linewidth = 1) +
-  geom_line(aes(y = ci_lb, color = analysis), linewidth = 1, linetype = "dashed") +
-  geom_line(aes(y = ci_ub, color = analysis), linewidth = 1, linetype = "dashed") +
-  geom_ribbon(aes(ymin = ci_lb, ymax = ci_ub, color = analysis), alpha = 0.2) +
+  geom_line(aes(y = ATE_EST), linewidth = 1, linetype = "dashed") +
+  geom_line(aes(y = upper, color = analysis, linetype = analysis), linewidth = 1) +
+  geom_line(aes(y = lower, color = analysis, linetype = analysis), linewidth = 1) +
   geom_hline(yintercept = 0, linewidth = 1, linetype = "dotted") +
   theme_clean(base_size = 15) +
+  scale_color_manual(values = c("purple", "blue", "red")) +
+  scale_linetype_manual(values = c("dotdash", "longdash", "solid")) +
   scale_x_continuous(breaks = seq(0, 5, 1)) +
+  scale_y_continuous(limits = c(-0.12, 0.22), n.breaks = 10) +
   theme(legend.position = "top", 
         legend.direction = "horizontal",
         legend.key.height = unit(0.6, "cm"),  # Adjust the height of the legend key
         legend.key.width = unit(1.5, "cm"),
-        legend.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
         axis.text.y = element_text(angle = 60)) +
-  labs(x = TeX("$\\Gamma$ in calibrated sensitivity model, $\\frac{\\gamma}{\\hat{M}}$ in sensitivity model"), 
+  labs(x = TeX("$\\Gamma$ in calibrated sensitivity model, $\\frac{\\gamma}{\\hat{M}}$ in sensitivity model"),
        y = TeX("ATE, bounds, and pointwise 95\\% CI"),
-       color = "Analysis")
+       color = "", 
+       linetype = "")
 
 ggsave(plot = p, filename = "../figures/violence_peace_fx.png",
        width = 8, height = 6)
@@ -103,40 +119,57 @@ plot_dat %<>% mutate(
   upper_ci_ub = ifelse(Gamma == 1, full_ate_ub, upper_ci_ub),
   lower_ci_ub = ifelse(Gamma == 1, full_ate_lb, lower_ci_lb)
 )
+
+plot_dat %<>%
+  select(analysis, gamma = Gamma, upper_bd_est = upper_est, 
+         lower_bd_est = lower_est, ci_ub = upper_ci_ub, ci_lb = lower_ci_lb)
   
+plot_dat %<>% 
+  gather(var, value, upper_bd_est, lower_bd_est, ci_lb, ci_ub) %>% 
+  filter(!(analysis == "new" & var == "lower_bd_est"),
+         !(analysis == "new" & var == "upper_bd_est")) %>% 
+  mutate(analysis = ifelse(grepl("_est", var), "bound", analysis),
+         var = ifelse(var %in% c("ci_lb", "lower_bd_est"), "lower", "upper")) 
+
+plot_dat %<>% mutate(
+  analysis = case_when(
+    analysis == "new" ~ "Calibrated sensitivity CI",
+    analysis == "old" ~ "Standard sensitivity CI",
+    T ~ "Estimated bounds"
+  ),
+  analysis = factor(analysis,
+                    levels = c("Estimated bounds", 
+                               "Standard sensitivity CI",
+                               "Calibrated sensitivity CI"))
+)
+
+plot_dat %<>% spread(var, value)
 
 ########################################
 ### Plots!
 
-ATE_EST <- plot_dat$upper_est[1]
-options(ggplot2.discrete.colour= c("red", "blue"))
+ATE_EST <- full_ate_est
 
-# Guesstimate Gamma_+ for now; later, interpolate with model
-Gamma_astM <- 0.025
-Gamma_ast <- 0.034
-
-p <- plot_dat %>%
-  mutate(analysis = ifelse(analysis == "new", "Calibrated sensitivity", "Standard sensitivity")) %>%
-  ggplot(aes(x = log(Gamma) / plot_dat$max_confounding[1])) +
-  geom_hline(yintercept = ATE_EST, linewidth = 1, linetype = "dashed") +
-  geom_line(aes(y = upper_est, color = analysis), color = "purple", linewidth = 1) +
-  geom_line(aes(y = lower_est, color = analysis), color = "purple", linewidth = 1) +
-  geom_line(aes(y = lower_ci_lb, color = analysis), linewidth = 1, linetype = "dashed") +
-  geom_line(aes(y = upper_ci_ub, color = analysis), linewidth = 1, linetype = "dashed") +
-  geom_ribbon(aes(ymin = lower_ci_lb, ymax = upper_ci_ub, color = analysis), alpha = 0.2) +
+p <- ggplot(data = plot_dat, aes(x = log(gamma) / estimates$max_confounding[1])) + 
+  geom_line(aes(y = ATE_EST), linewidth = 1, linetype = "dashed") +
+  geom_line(aes(y = upper, color = analysis, linetype = analysis), linewidth = 1) +
+  geom_line(aes(y = lower, color = analysis, linetype = analysis), linewidth = 1) +
   geom_hline(yintercept = 0, linewidth = 1, linetype = "dotted") +
-
   theme_clean(base_size = 15) +
+  scale_color_manual(values = c("purple", "blue", "red")) +
+  scale_linetype_manual(values = c("dotdash", "longdash", "solid")) +
+  scale_x_continuous(breaks = seq(0, 5, 1)) +
+  scale_y_continuous(limits = c(-0.12, 0.22), n.breaks = 10) +
   theme(legend.position = "top", 
         legend.direction = "horizontal",
         legend.key.height = unit(0.6, "cm"),  # Adjust the height of the legend key
         legend.key.width = unit(1.5, "cm"),
-        legend.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
         axis.text.y = element_text(angle = 60)) +
-  scale_y_continuous(limits = c(-0.15, 0.25), n.breaks = 10) +
-  labs(x = TeX("$\\Gamma$ in calibrated sensitivity model, $\\frac{\\gamma}{\\widehat{M}}$ in sensitivity model"),
+  labs(x = TeX("$\\Gamma$ in calibrated sensitivity model, $\\frac{\\gamma}{\\hat{M}}$ in sensitivity model"),
        y = TeX("ATE, bounds, and pointwise 95\\% CI"),
-       color = "Analysis")
+       color = "", 
+       linetype = "")
 
 ggsave(plot = p, filename = "../figures/violence_peace_odds.png",
        width = 8, height = 6)
