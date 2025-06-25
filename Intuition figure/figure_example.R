@@ -21,7 +21,7 @@ p <- ggplot(dat = dat) + geom_tile(aes(x = rel_std_accuracy,
                        mid = "white", 
                        high = "red", 
                        midpoint = 1) +
-  labs(x = TeX("$\\sqrt{ \\frac{V(\\hat{M}) / M^2}{V \\{ \\hat{u}(\\gamma) \\} / \\gamma^2}}$"),
+  labs(x = TeX("$\\frac{\\sqrt{V(\\hat{M})} / M}{\\sqrt{V \\{ \\hat{u}(\\gamma) \\}} / \\gamma}$"),
        y = TeX("$\\rho(\\hat{u}(\\gamma), \\hat{M})$"),
        color = TeX("$\\frac{V \\{ \\hat{U}(\\Gamma) \\}}{V\\{ \\hat{u}(\\gamma) \\}}$"),
        fill =  TeX("$\\frac{V \\{ \\hat{U}(\\Gamma) \\}}{V\\{ \\hat{u}(\\gamma) \\}}$")) +
@@ -38,5 +38,5 @@ p <- ggplot(dat = dat) + geom_tile(aes(x = rel_std_accuracy,
             label = "Sensitivity + post hoc calibration \n over-estimates robustness",
             hjust = 0)
 
-ggsave(plot = p, filename = "../Figures/intuition.png",
+ggsave(plot = p, filename = "../figures/intuition.png",
        width = 8, height = 5)
