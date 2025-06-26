@@ -45,7 +45,6 @@ source("./1_darfur_figures.R")
 ############################
 ### Smoking data analysis
 
-set.seed(20231205)
 source("./smoking_analysis/1_clean_data.R")
 source("./smoking_analysis/2_fx_diff.R")
 

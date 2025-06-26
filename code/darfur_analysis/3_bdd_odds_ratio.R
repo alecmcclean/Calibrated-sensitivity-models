@@ -2,8 +2,10 @@
 ### Darfur bounded odds ratio without M
 ####################################################
 
-load("../../intermediate/darfur/darfur_data.RData")
-source("../0_bdd_odds_functions.R")
+set.seed(20250624)
+
+load("../intermediate/darfur/darfur_data.RData")
+source("0_bdd_odds_functions.R")
 
 #####################################################
 ### Create table of ranges for all covariates
@@ -228,6 +230,6 @@ for (COV in colnames(covariates)) {
   }
 }
 
-saveRDS(estimates, "../../intermediate/darfur/bdd_odds_no_M.RDS")
+saveRDS(estimates, "../intermediate/darfur/bdd_odds_no_M.RDS")
 rm(list = ls(all = T))
 gc()

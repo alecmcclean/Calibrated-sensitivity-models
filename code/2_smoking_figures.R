@@ -36,7 +36,7 @@ p <- ggplot(data = dat, aes(x = gamma)) +
   theme_clean(base_size = 15) +
   scale_color_manual(values = c("purple", "blue", "red")) +
   scale_linetype_manual(values = c("dotdash", "longdash", "solid")) +
-  scale_x_continuous(breaks = seq(0, 5, 1)) +
+  scale_x_continuous(breaks = seq(0, 10, 1)) +
   theme(legend.position = "top", 
         legend.direction = "horizontal",
         legend.key.height = unit(0.6, "cm"),  # Adjust the height of the legend key

@@ -5,9 +5,11 @@
 ### the bootstrap.
 ####################################################
 
+set.seed(20250624)
+
 ### Load data and functions
-load("../../intermediate/darfur/darfur_data.RData")
-source("../0_bdd_odds_functions.R")
+load("../intermediate/darfur/darfur_data.RData")
+source("0_bdd_odds_functions.R")
 
 #####################################################
 ### Create table of ranges for all covariates
@@ -31,20 +33,12 @@ boot_est <- expand.grid(Gamma = Gammas,
 boot_est$max_confounding <- NA; boot_est$max_COV <- NA
 boot_est$upper_est <- NA; boot_est$lower_est <- NA
 
-
-# Set the number of cores you want to use
-num_cores <- detectCores() - 2  # You can change this number as needed
-
-# Register a parallel backend using doParallel
-cl <- makeCluster(num_cores)
-registerDoParallel(cl)
-
-# Start timing
 start_time <- Sys.time()
-results <- foreach(BOOT = 1:NUM_BOOTS) %dopar% {
-  
-  library(dplyr)
+results <- vector("list", NUM_BOOTS)
+for (BOOT in seq_len(NUM_BOOTS)) {
 
+  cat("\nBoot: ", BOOT, "out of", NUM_BOOTS)
+    
   #####################################
   ### Resample for this bootstrap
   
@@ -102,29 +96,38 @@ results <- foreach(BOOT = 1:NUM_BOOTS) %dopar% {
     max_COV <- NA
     max_confounding <- 0
     for (COV in colnames(train_covariates)) {
+      COV_confounding <- NA
+      
       if (!grepl("village", COV)) {
-        COV_coef <- coef(prop_mod)[names(coef(prop_mod)) == COV]
-        COV_confounding <- 
-          abs(COV_coef * (cov_ranges_dat$max[cov_ranges_dat$var == COV] -
-                            cov_ranges_dat$min[cov_ranges_dat$var == COV]))
+        # Safe coefficient lookup
+        COV_coef <- coef(prop_mod)[COV]
+        
+        if (!is.na(COV_coef)) {
+          range_diff <- cov_ranges_dat$max[cov_ranges_dat$var == COV] -
+            cov_ranges_dat$min[cov_ranges_dat$var == COV]
+          COV_confounding <- abs(COV_coef * range_diff)
+        }
         
       } else if (COV == "village_abu_gamra") {
-        COV_coef <- coef(prop_mod)[grepl("village", names(coef(prop_mod)))]
-        for (i in COV_coef) {
-          for (j in COV_coef) {
-            COV_confounding <- abs(i - j)
-            if(COV_confounding > max_confounding) {
-              max_COV <- "village"
-              max_confounding <- COV_confounding
+        # Handle factor contrasts (village indicators)
+        village_coefs <- coef(prop_mod)[grepl("village", names(coef(prop_mod)))]
+        
+        if (length(village_coefs) > 0) {
+          for (i in village_coefs) {
+            for (j in village_coefs) {
+              COV_confounding <- abs(i - j)
+              if (!is.na(COV_confounding) && COV_confounding > max_confounding) {
+                max_COV <- "village"
+                max_confounding <- COV_confounding
+              }
             }
           }
         }
-        
-      } else {
-        break
+        next
       }
       
-      if(COV_confounding > max_confounding) {
+      # Global update if applicable
+      if (!is.na(COV_confounding) && COV_confounding > max_confounding) {
         max_COV <- COV
         max_confounding <- COV_confounding
       }
@@ -268,36 +271,45 @@ results <- foreach(BOOT = 1:NUM_BOOTS) %dopar% {
                    family = binomial(link = "logit"))
   
   boot_est$max_confounding[boot_est$boot == BOOT] <- 0
+  
   for (COV in colnames(covariates)) {
+    COV_confounding <- NA
+    
     if (!grepl("village", COV)) {
-      COV_coef <- coef(prop_mod)[names(coef(prop_mod)) == COV]
-      COV_confounding <- 
-        abs(COV_coef * (cov_ranges_dat$max[cov_ranges_dat$var == COV] -
-                          cov_ranges_dat$min[cov_ranges_dat$var == COV]))
+      COV_coef <- coef(prop_mod)[COV]
+      
+      if (!is.na(COV_coef)) {
+        range_diff <- cov_ranges_dat$max[cov_ranges_dat$var == COV] -
+          cov_ranges_dat$min[cov_ranges_dat$var == COV]
+        COV_confounding <- abs(COV_coef * range_diff)
+      }
       
     } else if (COV == "village_abu_gamra") {
-      COV_coef <- coef(prop_mod)[grepl("village", names(coef(prop_mod)))]
-      for (i in COV_coef) {
-        for (j in COV_coef) {
-          COV_confounding <- abs(i - j)
-          if(COV_confounding > boot_est$max_confounding[boot_est$boot == BOOT][1]) {
-            boot_est$max_COV[boot_est$boot == BOOT] <- "village"
-            boot_est$max_confounding[boot_est$boot == BOOT] <- COV_confounding
+      village_coefs <- coef(prop_mod)[grepl("village", names(coef(prop_mod)))]
+      
+      if (length(village_coefs) > 0) {
+        for (i in village_coefs) {
+          for (j in village_coefs) {
+            COV_confounding <- abs(i - j)
+            if (!is.na(COV_confounding) &&
+                COV_confounding > boot_est$max_confounding[boot_est$boot == BOOT][1]) {
+              boot_est$max_COV[boot_est$boot == BOOT] <- "village"
+              boot_est$max_confounding[boot_est$boot == BOOT] <- COV_confounding
+            }
           }
         }
       }
-      
-    } else {
-      break
+      next
     }
     
-    if(COV_confounding > boot_est$max_confounding[boot_est$boot == BOOT][1]) {
+    if (!is.na(COV_confounding) &&
+        COV_confounding > boot_est$max_confounding[boot_est$boot == BOOT][1]) {
       boot_est$max_COV[boot_est$boot == BOOT] <- COV
       boot_est$max_confounding[boot_est$boot == BOOT] <- COV_confounding
     }
   }
   
-  return(boot_est)
+  results[[BOOT]] <- boot_est
 }
 
 # End timing
@@ -306,8 +318,6 @@ end_time <- Sys.time()
 # Calculate elapsed time
 elapsed_time <- end_time - start_time
 print(elapsed_time)
-
-stopCluster(cl)
 
 ### Pull results from list
 boot_est <- data.frame()
@@ -319,7 +329,7 @@ for (i in 1:length(results)) {
 #####################
 ### Save
 
-saveRDS(boot_est, file = "../../intermediate/darfur/bdd_odds_bootstraps.RDS")
+saveRDS(boot_est, file = "../intermediate/darfur/bdd_odds_bootstraps.RDS")
 
 rm(list = ls(all = T))
 gc()

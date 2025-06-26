@@ -27,7 +27,7 @@ darfur_covariates <-
 
 darfur$peacefactor <- darfur$peacefactor[,1]
 
-save(darfur, darfur_covariates, file = "../../intermediate/darfur/darfur_data.RData")
+save(darfur, darfur_covariates, file = "../intermediate/darfur/darfur_data.RData")
 
 rm(list = ls(all = T))
 gc()

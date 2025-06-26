@@ -2,10 +2,13 @@
 ### Darfur effect differences analysis
 ####################################################
 
+sink("../intermediate/darfur/darfur_results.txt")
+set.seed(20250624)
+
 ###################################
 ### Load data
 
-load("../../intermediate/darfur/darfur_data.RData")
+load("../intermediate/darfur/darfur_data.RData")
 
 #############################################
 ### Effect Difference model
@@ -52,9 +55,25 @@ for (COV in c("female", "age", "farmer_dar", "herder_dar",
                   sl.lib = c("SL.mean", "SL.ranger"))
 
   small_ate_est <- small_est$res$est[3]
+  small_ifvals   <- small_est$ifvals$a1 - small_est$ifvals$a0
   
   ### Calculate measured confounding
   measured_confounding <- abs(full_ate_est - small_ate_est)
+  
+  ### SE & 95% CI for this measured confounding
+  diff_ifvals    <- full_ifvals - small_ifvals
+  se_conf        <- sqrt(var(diff_ifvals) / nrow(darfur))
+  ci_lb          <- measured_confounding - qnorm(0.975) * se_conf
+  ci_ub          <- measured_confounding + qnorm(0.975) * se_conf
+  
+  ### Print output
+  cat(
+    "Covariate:            ", paste(COV, collapse = ","), "\n",
+    "Confounding estimate: ", formatC(measured_confounding, digits = 3), "\n",
+    "95% CI:               [", formatC(ci_lb, digits = 3),
+    ", ", formatC(ci_ub, digits = 3), "]\n\n",
+    sep = ""
+  )
   
   ### Update covariate corresponding to measured confounding
   if (measured_confounding > max_confounding) {
@@ -145,7 +164,7 @@ dat %<>% bind_rows(dat_old)
 
 save(dat, darfur, full_ate_est, full_ate_lb, full_ate_ub, full_ifvals, 
      max_confounding, maxcov_ifvals, max_sign, max_covariate, Gamma_ast, Gamma_astM,
-     file = "../../intermediate/darfur/fx_intermediate.RData")
+     file = "../intermediate/darfur/fx_intermediate.RData")
 
 
 # --------------------------------------------
@@ -186,6 +205,6 @@ cat("One-number summary of sensitivity (non-ACS): ", onenum_est,
 
 save(onenum_est, onenum_var_est_new, onenum_lb_new, onenum_ub_new,
      onenum_var_est_old, onenum_lb_old, onenum_ub_old, 
-     Gamma_ast, max_confounding, Gamma_astM, file = "../../data/darfur_results.RData")
+     Gamma_ast, max_confounding, Gamma_astM, file = "../data/darfur_results.RData")
 
-
+sink()

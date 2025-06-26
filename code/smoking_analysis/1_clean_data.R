@@ -5,7 +5,7 @@
 ########################
 ### Load data
 
-smoking <- read.dta("../../data/C_2010_JOE-dataRS5K.dta")
+smoking <- read.dta("../data/C_2010_JOE-dataRS5K.dta")
 
 ### Dichotomize treatment
 smoking$is_smoke <- ifelse(smoking$T > 0, 1, 0)
@@ -22,7 +22,7 @@ smoking_covariates <-
   ) %>%
   clean_names()
 
-save(smoking, smoking_covariates, file = "../../intermediate/smoking/smoking_data.RData")
+save(smoking, smoking_covariates, file = "../intermediate/smoking/smoking_data.RData")
 
 rm(list = ls(all = T))
 gc()

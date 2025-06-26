@@ -158,7 +158,6 @@ p <- ggplot(data = plot_dat, aes(x = log(gamma) / estimates$max_confounding[1]))
   theme_clean(base_size = 15) +
   scale_color_manual(values = c("purple", "blue", "red")) +
   scale_linetype_manual(values = c("dotdash", "longdash", "solid")) +
-  scale_x_continuous(breaks = seq(0, 5, 1)) +
   scale_y_continuous(limits = c(-0.12, 0.22), n.breaks = 10) +
   theme(legend.position = "top", 
         legend.direction = "horizontal",
